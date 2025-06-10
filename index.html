@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>대화문 완성하기 영단어 퀴즈게임</title>
+<style>
+  body {
+    font-family: 'Comic Sans MS', cursive, sans-serif;
+    background: #fff0f5;
+    margin: 0; padding: 0;
+    display: flex; flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+  h1 {
+    color: #d6336c;
+    margin-top: 20px;
+    font-size: 2.2rem;
+  }
+  #nameInputSection, #previewSection, #quizSection, #resultSection {
+    background: #fff;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(214,51,108,0.4);
+    padding: 20px 30px;
+    margin: 20px;
+    max-width: 720px;
+    width: 90%;
+  }
+  label, input[type="text"] {
+    font-size: 1.2rem;
+  }
+  input[type="text"], input.blankInput {
+    font-family: 'Comic Sans MS', cursive, sans-serif;
+    font-size: 1.1rem;
+    width: auto;
+    min-width: 50px;
+    padding: 3px 6px;
+    border: 2px solid #d6336c;
+    border-radius: 6px;
+    text-align: center;
+    margin: 0 3px;
+    vertical-align: middle;
+  }
+  input.blankInput.correct {
+    border-color: #2e7d32;
+    background-color: #d0f0c0;
+    font-weight: bold;
+  }
+  input.blankInput.incorrect {
+    border-color: #d32f2f;
+    background-color: #f9d6d5;
+  }
+  .correctAnswer {
+    font-size: 0.9rem;
+    color: #2e7d32;
+    margin-left: 8px;
+    vertical-align: middle;
+    font-weight: 700;
+  }
+  button {
+    margin-top: 20px;
+    background-color: #ff7f9f;
+    color: white;
+    border: none;
+    border-radius: 15px;
+    padding: 12px 24px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(214,51,108,0.5);
+    transition: background-color 0.3s ease;
+  }
+  button:hover:not(:disabled) {
+    background-color: #d6336c;
+  }
+  button:disabled {
+    background-color: #ffcad4;
+    cursor: default;
+  }
+  #sentence {
+    font-size: 1.3rem;
+    margin-bottom: 10px;
+    color: #5c1030;
+    white-space: pre-wrap;
+    line-height: 1.6em;
+  }
+  #meaning {
+    color: #9d466c;
+    margin-bottom: 18px;
+    font-size: 1.3rem; /* 문제와 같은 크기 */
+    white-space: pre-wrap;
+    line-height: 1.6em;
+  }
+  #feedback {
+    font-weight: bold;
+    font-size: 1.25rem;
+    margin-top: 10px;
+    min-height: 32px;
+  }
+  #progress {
+    font-size: 1rem;
+    color: #8a2a5b;
+    margin-top: 6px;
+  }
+  #scoreDisplay {
+    font-size: 1.4rem;
+    color: #d6336c;
+    font-weight: 700;
+  }
+  #response {
+    margin-top: 10px;
+    color: #3d185b;
+    white-space: pre-wrap;
+    font-family: monospace;
+    font-size: 0.9rem;
+  }
+  #previewContainer {
+    max-height: 400px;
+    overflow-y: auto;
+    background: #fff0f5cc;
+    padding: 15px;
+    border-radius: 12px;
+    border: 2px dashed #d6336c;
+  }
+  .paragraph {
+    margin-bottom: 25px;
+  }
+  .engLine {
+    white-space: nowrap;
+    margin-bottom: 0; /* 간격 없앰 */
+  }
+  .engSpeaker {
+    font-weight: 700;
+    color: #5c1030;
+    margin-right: 6px;
+  }
+  .engText {
+    color: #5c1030;
+  }
+  .korLine {
+    color: #9d466c;
+    margin-left: 24px;
+    margin-bottom: 4px;
+    white-space: pre-wrap;
+  }
+</style>
+</head>
+<body>
+<h1>대화문 완성하기 영단어 퀴즈게임</h1>
+
+<div id="nameInputSection">
+  <label for="userName">이름을 입력하세요:</label>
+  <input type="text" id="userName" placeholder="이름을 입력하세요" />
+  <button id="toPreviewBtn">시작</button>
+</div>
+
+<div id="previewSection" style="display:none;">
+  <h2>예습: 전체 대화문과 해석</h2>
+  <div id="previewContainer"></div>
+  <button id="startGameBtn">게임 시작하기</button>
+</div>
+
+<div id="quizSection" style="display:none;">
+  <div id="progress"></div>
+  <div id="sentence"></div>
+  <div id="meaning"></div>
+  <button id="submitBtn">제출</button>
+  <button id="nextBtn" style="display:none;">다음 문제</button>
+  <div id="feedback"></div>
+</div>
+
+<div id="resultSection" style="display:none;">
+  <div id="scoreDisplay"></div>
+  <button id="sendScoreBtn">점수 서버 전송</button>
+  <div id="response"></div>
+</div>
+
+<script>
+const game = "빈칸 클릭 입력형 영단어 퀴즈게임";
+
+const paragraphs = [
+  {
+    eng:
+`W: Excuse me, but you must not talk on the phone here.
+B: I’m terribly sorry. I’ll turn off my phone.
+W: You don’t have to. Texting is OK.
+B: I see. Thank you.`,
+    kor:
+`W: 실례합니다만, 여기서 전화기를 사용하면 안 됩니다.
+B: 정말 죄송합니다. 전화기를 끌게요.
+W: 그럴 필요 없어요. 문자하는 것은 괜찮아요.
+B: 알겠습니다. 감사합니다.`
+  },
+  {
+    eng:
+`G: Excuse me. May I touch this golden bear?
+M: No, you may not. You must not touch anything in this room.
+G: OK, I understand.`,
+    kor:
+`G: 실례합니다. 이 금빛 곰을 만져도 되나요?
+M: 아니요, 안 됩니다. 이 방에서는 어떤 것도 만지면 안 됩니다.
+G: 알겠습니다.`
+  },
+  {
+    eng:
+`B: May I go to the video room, Mom?
+W: Of course, but don’t run.
+B: Why not?
+W: Look at that sign. You must not run inside the museum.`,
+    kor:
+`B: 엄마, 비디오 방에 가도 될까요?
+W: 물론이지만 뛰면 안 돼.
+B: 왜 안 되죠?
+W: 저 표지판을 봐. 박물관 안에서는 뛰면 안 돼.`
+  },
+  {
+    eng:
+`B: May I take food into the museum?
+W: No, you may not. You must not bring any food inside.
+B: How about water?
+W: Only bottled water is OK.`,
+    kor:
+`B: 박물관에 음식을 가져가도 될까요?
+W: 아니요, 안 됩니다. 박물관 안에 음식을 가져가면 안 됩니다.
+B: 물은 어때요?
+W: 병에 든 물만 괜찮아요.`
+  },
+  {
+    eng:
+`M: Everybody, look over here, please. This is Sunflowers by Van Gogh.
+G: Wow, this is my favorite painting. May I take a picture of it?
+M: Yes, you may, but you must not use the flash.
+G: Why not? It’s a little dark in here.
+M: I’m sorry, but using the flash can damage paintings.
+G: Oh, I didn’t know that.
+M: Everyone, we’ll move on to Monet’s paintings next.
+G: Great!`,
+    kor:
+`M: 여러분, 이리 봐 주세요. 이것은 반 고흐의 해바라기입니다.
+G: 와, 이거 제가 가장 좋아하는 그림이에요. 사진 한장 찍어도 될까요?
+M: 네, 찍으셔도 되지만 플래시는 사용하면 안 돼요.
+G: 왜 안 되죠? 여기 조금 어두워요.
+M: 죄송하지만 플래시는 그림들을 손상시킬 수 있어요.
+G: 아, 몰랐어요.
+M: 여러분, 다음은 모네의 그림들로 넘어가겠습니다.
+G: 좋아요!`
+  },
+  {
+    eng:
+`A: May I ride a bike here?
+B: Yes, you may.
+A: May I fly a drone here?
+B: No, you may not. You must not fly a drone here.`,
+    kor:
+`A: 여기서 자전거를 타도 되나요?
+B: 네, 그래도 됩니다.
+A: 여기서 드론을 날려도 되나요?
+B: 아니요, 안 됩니다. 여기서 드론을 날리면 안 돼요.`
+  },
+  {
+    eng:
+`A: Excuse me. May I bring my dog to the store?
+B: No, you may not. You must not bring pets inside.
+A: OK. I understand.`,
+    kor:
+`A: 실례합니다. 가게에 내 강아지를 데려가도 될까요?
+B: 아니요, 안 됩니다. 애완동물을 가게 안으로 데려가면 안 돼요.
+A: 알겠습니다.`
+  },
+  {
+    eng:
+`B: May I eat here?
+W: No, you may not eat inside the museum.
+B: How about water? May I drink water?
+W: Sure, water is OK.`,
+    kor:
+`B: 여기서 먹어도 되나요?
+W: 아니요, 박물관 안에서 먹으면 안 됩니다.
+B: 물은요? 물은 마셔도 되나요?
+W: 물론입니다, 물은 괜찮아요.`
+  },
+];
+
+const SETS = [
+  {name:"단어 20% 가림", hideRatio:0.2},
+  {name:"단어 50% 가림", hideRatio:0.5},
+  {name:"단어 70% 가림", hideRatio:0.7},
+];
+
+let currentSetIndex = 0;
+let currentQuizOrder = [];
+let currentQuizIndex = 0;
+let score = 0;
+let startTime = 0;
+let userName = "";
+
+const nameInputSection = document.getElementById("nameInputSection");
+const toPreviewBtn = document.getElementById("toPreviewBtn");
+const previewSection = document.getElementById("previewSection");
+const previewContainer = document.getElementById("previewContainer");
+const startGameBtn = document.getElementById("startGameBtn");
+const quizSection = document.getElementById("quizSection");
+const sentenceEl = document.getElementById("sentence");
+const meaningEl = document.getElementById("meaning");
+const submitBtn = document.getElementById("submitBtn");
+const nextBtn = document.getElementById("nextBtn");
+const feedbackEl = document.getElementById("feedback");
+const progressEl = document.getElementById("progress");
+const resultSection = document.getElementById("resultSection");
+const scoreDisplay = document.getElementById("scoreDisplay");
+const sendScoreBtn = document.getElementById("sendScoreBtn");
+const responseEl = document.getElementById("response");
+
+let currentHiddenWords = [];
+let currentInputs = [];
+
+// 단어 랜덤 셔플
+function shuffleArray(array) {
+  const arr = array.slice();
+  for(let i=arr.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// 빈칸(input) 생성 및 단어 가림, 대화자명 제외
+function makeBlankInputs(sentence, hideRatio) {
+  // 줄별로 처리
+  const lines = sentence.split("\n");
+  let totalTokens = [];
+  let hidePositions = [];
+  let tokensByLine = [];
+
+  // 전체 단어 위치 기억하면서 대화자명 제외
+  lines.forEach((line, lineIdx) => {
+    const match = line.match(/^([A-Z]):\s*(.*)$/);
+    let speaker = "";
+    let content = "";
+    if(match){
+      speaker = match[1] + ":";
+      content = match[2];
+    } else {
+      content = line;
+    }
+    const tokens = content.split(/(\s+|\b)/);
+    tokensByLine.push({speaker, tokens});
+    tokens.forEach((token, idx) => {
+      if(/^[A-Za-z']+$/.test(token)){
+        totalTokens.push({lineIdx, tokenIdx: idx});
+      }
+    });
+  });
+
+  const hideCount = Math.floor(totalTokens.length * hideRatio);
+  const hideIndices = shuffleArray(totalTokens).slice(0, hideCount);
+
+  let hideMap = {};
+  hideIndices.forEach(({lineIdx, tokenIdx}) => {
+    if(!hideMap[lineIdx]) hideMap[lineIdx] = new Set();
+    hideMap[lineIdx].add(tokenIdx);
+  });
+
+  currentHiddenWords = [];
+  currentInputs = [];
+
+  const processedLines = tokensByLine.map(({speaker, tokens}, lineIdx) => {
+    const newTokens = tokens.map((token, idx) => {
+      if(hideMap[lineIdx] && hideMap[lineIdx].has(idx)) {
+        currentHiddenWords.push(token);
+        currentInputs.push(null);
+        return `<input type="text" class="blankInput" data-idx="${currentHiddenWords.length-1}" maxlength="${token.length}" />`;
+      }
+      return token;
+    });
+    if(speaker) return `<div><strong>${speaker}</strong> ${newTokens.join('')}</div>`;
+    else return `<div>${newTokens.join('')}</div>`;
+  });
+
+  return processedLines.join("\n");
+}
+
+function updateProgress() {
+  progressEl.textContent = `세트: ${SETS[currentSetIndex].name} / 문제 ${currentQuizIndex+1} / 총 ${currentQuizOrder.length}문제`;
+}
+
+function showQuiz() {
+  feedbackEl.textContent = "";
+  submitBtn.disabled = false;
+  nextBtn.style.display = "none";
+
+  updateProgress();
+
+  const idx = currentQuizOrder[currentQuizIndex];
+  const paragraph = paragraphs[idx];
+  const set = SETS[currentSetIndex];
+
+  const sentenceHTML = makeBlankInputs(paragraph.eng, set.hideRatio);
+  sentenceEl.innerHTML = sentenceHTML;
+  meaningEl.textContent = `해석:\n${paragraph.kor}`;
+
+  document.querySelectorAll(".blankInput").forEach(input => {
+    input.addEventListener("input", e => {
+      const i = parseInt(e.target.dataset.idx, 10);
+      currentInputs[i] = e.target.value.trim();
+      if(input.classList.contains("correct")) {
+        input.disabled = true;
+      }
+    });
+  });
+}
+
+function checkAnswer() {
+  let isCorrect = true;
+  let correctCount = 0;
+  for(let i=0; i<currentHiddenWords.length; i++) {
+    const userAns = (currentInputs[i] || "").toLowerCase().replace(/'/g,"");
+    const correctAns = currentHiddenWords[i].toLowerCase().replace(/'/g,"");
+    const inputEl = document.querySelector(`input.blankInput[data-idx="${i}"]`);
+    const existingAnswerSpan = inputEl.nextSibling && inputEl.nextSibling.classList && inputEl.nextSibling.classList.contains("correctAnswer") ? inputEl.nextSibling : null;
+    if(existingAnswerSpan) existingAnswerSpan.remove();
+
+    if(userAns === correctAns) {
+      inputEl.classList.add("correct");
+      inputEl.classList.remove("incorrect");
+      correctCount++;
+      inputEl.disabled = true;
+    } else {
+      inputEl.classList.add("incorrect");
+      inputEl.classList.remove("correct");
+      isCorrect = false;
+      inputEl.disabled = true;
+
+      const answerSpan = document.createElement("span");
+      answerSpan.className = "correctAnswer";
+      answerSpan.textContent = correctAns;
+      inputEl.after(answerSpan);
+    }
+  }
+
+  if(isCorrect) {
+    feedbackEl.style.color = "#2e7d32";
+    feedbackEl.textContent = `정답! 🎉 +${correctCount * 10}점`;
+    score += correctCount * 10;
+  } else {
+    feedbackEl.style.color = "#d32f2f";
+    feedbackEl.textContent = `틀린 단어가 있습니다. 틀린 칸 옆에 정답이 표시됩니다.`;
+  }
+
+  submitBtn.disabled = true;
+  nextBtn.style.display = "inline-block";
+}
+
+function nextQuiz() {
+  currentQuizIndex++;
+  if(currentQuizIndex >= currentQuizOrder.length) {
+    currentSetIndex++;
+    if(currentSetIndex >= SETS.length) {
+      showResult();
+      return;
+    } else {
+      startSet();
+      return;
+    }
+  }
+  showQuiz();
+}
+
+function startSet() {
+  currentQuizOrder = shuffleArray(paragraphs.map((_,i) => i));
+  currentQuizIndex = 0;
+  updateProgress();
+  showQuiz();
+}
+
+function showResult() {
+  quizSection.style.display = "none";
+  resultSection.style.display = "block";
+  const totalMaxScore = SETS.reduce((sum,set) => {
+    return sum + paragraphs.reduce((acc,p)=>{
+      const wordCount = p.eng.match(/\b[A-Za-z']+\b/g).length;
+      return acc + Math.floor(wordCount * set.hideRatio) * 10;
+    },0);
+  },0);
+  scoreDisplay.textContent = `${userName}님의 점수: ${score}점 / 최대 점수 약 ${totalMaxScore}점`;
+}
+
+function generatePreview() {
+  previewContainer.innerHTML = "";
+  paragraphs.forEach(p => {
+    const div = document.createElement("div");
+    div.className = "paragraph";
+
+    const engLines = p.eng.split("\n");
+    const engHTML = engLines.map(line => {
+      const match = line.match(/^([A-Z]):\s*(.*)$/);
+      if(match){
+        return `<div class="engLine"><span class="engSpeaker">${match[1]}:</span><span class="engText">${match[2]}</span></div>`;
+      }
+      return `<div class="engLine">${line}</div>`;
+    }).join("");
+
+    const korLines = p.kor.split("\n");
+    const korHTML = korLines.map(line => `<div class="korLine">${line}</div>`).join("");
+
+    div.innerHTML = `<div class="eng">${engHTML}</div><div class="kor">${korHTML}</div>`;
+    previewContainer.appendChild(div);
+  });
+}
+
+function saveData(game, name, score, elapsedTime) {
+  const FUNCTION_URL = "https://us-central1-record-f420d.cloudfunctions.net/report";
+  const requestData = {
+    game,
+    name,
+    score: parseInt(score, 10),
+    elapsedTime: parseInt(elapsedTime, 10)
+  };
+  fetch(FUNCTION_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(requestData)
+  }).then(async response => {
+    const data = await response.json();
+    if (response.ok) {
+      responseEl.textContent = `성공: ${JSON.stringify(data, null, 2)}`;
+    } else {
+      responseEl.textContent = `오류: ${JSON.stringify(data, null, 2)}`;
+    }
+  }).catch(error => {
+    responseEl.textContent = `네트워크 오류: ${error.message}`;
+  });
+}
+
+toPreviewBtn.addEventListener("click", () => {
+  const nameVal = document.getElementById("userName").value.trim();
+  if(nameVal === "") {
+    alert("이름을 입력해주세요!");
+    return;
+  }
+  userName = nameVal;
+  nameInputSection.style.display = "none";
+  previewSection.style.display = "block";
+  generatePreview();
+});
+
+startGameBtn.addEventListener("click", () => {
+  previewSection.style.display = "none";
+  quizSection.style.display = "block";
+  score = 0;
+  currentSetIndex = 0;
+  startTime = Date.now();
+  startSet();
+});
+
+submitBtn.addEventListener("click", () => {
+  const allFilled = currentInputs.length > 0 && currentInputs.every(v => v && v.trim() !== "");
+  if(!allFilled) {
+    alert("모든 빈칸에 답을 입력해주세요!");
+    return;
+  }
+  checkAnswer();
+});
+
+nextBtn.addEventListener("click", () => {
+  nextQuiz();
+});
+
+sendScoreBtn.addEventListener("click", () => {
+  const elapsedTime = (Date.now() - startTime) / 1000;
+  saveData(game, userName, score, elapsedTime);
+});
+</script>
+
+</body>
+</html>
